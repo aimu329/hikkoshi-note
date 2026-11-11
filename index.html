@@ -197,6 +197,7 @@
       </label>
     </div>
     <img id="preview" class="preview" hidden alt="明細の画像">
+    <button type="button" id="clearImage" class="btn sub" hidden style="margin-bottom:12px">✕ この画像を取り消す</button>
     <div id="aiStatus" class="ai-status" hidden></div>
 
     <form id="form" autocomplete="off">
@@ -473,12 +474,29 @@ $('delBtn').onclick = async () => {
 };
 
 // ---------------- 追加・編集 ----------------
+// AIの読み取り中に画像を取り消したとき、あとから届いた結果を無視するための番号
+let aiToken = 0;
+
 function openEdit(rec) {
   state.editing = rec || null;
+  $('editTitle').textContent = rec ? '記録を編集' : '明細を追加';
+  resetImage();
+  openSheet('editSheet');
+}
+
+function resetImage() {
+  aiToken++;
   state.imageData = null;
+  $('preview').hidden = true; $('preview').removeAttribute('src');
+  $('clearImage').hidden = true;
+  setAiStatus('');
+  $('saveBtn').disabled = false;
+  fillForm(state.editing);
+}
+
+function fillForm(rec) {
   const f = $('form');
   f.reset();
-  $('editTitle').textContent = rec ? '記録を編集' : '明細を追加';
   f.date.value = rec ? rec.date : today();
   f.amount.value = rec ? rec.amount : '';
   f.store.value = rec ? rec.store : '';
@@ -486,11 +504,9 @@ function openEdit(rec) {
   f.payer.value = rec ? (rec.payer || '夫') : (lsGet('hikkoshi-payer') || '夫');
   f.items.value = rec ? rec.items : '';
   f.memo.value = rec ? rec.memo : '';
-  $('preview').hidden = true; $('preview').removeAttribute('src');
-  $('aiStatus').hidden = true;
-  openSheet('editSheet');
 }
 $('fab').onclick = () => openEdit(null);
+$('clearImage').onclick = () => { resetImage(); toast('画像を取り消したよ'); };
 $('editCancel').onclick = () => closeSheet('editSheet');
 
 // 画像を小さくする（通信と保存を軽くするため）
@@ -523,14 +539,22 @@ async function onPickImage(e) {
   const file = e.target.files && e.target.files[0];
   e.target.value = '';
   if (!file) return;
+  // 別の画像を選び直したときは、いったん元の内容に戻してから読み取る
+  if (state.imageData) resetImage();
+  const token = ++aiToken;
+  let data;
   try {
-    state.imageData = await resizeImage(file);
+    data = await resizeImage(file);
   } catch (err) { setAiStatus(err.message, true); return; }
-  $('preview').src = state.imageData; $('preview').hidden = false;
+  if (token !== aiToken) return;
+  state.imageData = data;
+  $('preview').src = data; $('preview').hidden = false;
+  $('clearImage').hidden = false;
   setAiStatus('🤖 AIが読み取り中…（10秒くらい）');
   $('saveBtn').disabled = true;
   try {
-    const r = await api('analyzeImage', state.pass, state.imageData);
+    const r = await api('analyzeImage', state.pass, data);
+    if (token !== aiToken) return; // 途中で取り消された
     const f = $('form');
     if (r.date) f.date.value = r.date;
     if (r.total != null && r.total !== '') f.amount.value = r.total;
@@ -541,8 +565,9 @@ async function onPickImage(e) {
     }
     setAiStatus('✅ 読み取ったよ。金額と日付が合ってるか確認して保存してね');
   } catch (err) {
+    if (token !== aiToken) return;
     setAiStatus('読み取れなかったよ。手で入力してね（' + err.message + '）', true);
-  } finally { $('saveBtn').disabled = false; }
+  } finally { if (token === aiToken) $('saveBtn').disabled = false; }
 }
 $('cameraInput').onchange = onPickImage;
 $('fileInput').onchange = onPickImage;
