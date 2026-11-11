@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>引っ越し費用ノート</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#2f7d6b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="引越ノート">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<style>
+  :root {
+    --bg: #f6f3ee;
+    --card: #ffffff;
+    --text: #2b2a28;
+    --sub: #7a756d;
+    --line: #e8e2d8;
+    --accent: #2f7d6b;
+    --accent-soft: #e2f0ec;
+    --warn: #c98a1b;
+    --danger: #c8463d;
+    --danger-soft: #fbe9e7;
+    --shadow: 0 2px 10px rgba(60, 50, 30, .07);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1b1a18; --card: #262522; --text: #f1eee8; --sub: #a9a39a;
+      --line: #3a3833; --accent: #5cc0a6; --accent-soft: #23332f;
+      --danger: #f07a70; --danger-soft: #3a2422; --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+    font-size: 16px; -webkit-text-size-adjust: 100%; }
+  button { font: inherit; cursor: pointer; }
+  input, select, textarea { font: inherit; color: var(--text); }
+  [hidden] { display: none !important; }
+  .wrap { max-width: 560px; margin: 0 auto; padding: calc(16px + env(safe-area-inset-top)) 16px 120px; }
+
+  /* ログイン */
+  #login { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+  .login-box { width: 100%; max-width: 360px; text-align: center; }
+  .login-box .logo { font-size: 48px; }
+  .login-box h1 { font-size: 22px; margin: 8px 0 4px; }
+  .login-box p { color: var(--sub); font-size: 14px; margin: 0 0 24px; }
+
+  /* ヘッダー */
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  header h1 { font-size: 18px; margin: 0; }
+  .badge { font-size: 12px; padding: 2px 8px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); margin-left: 6px; vertical-align: middle; }
+  .icon-btn { border: none; background: none; font-size: 22px; padding: 6px; color: var(--sub); }
+
+  .card { background: var(--card); border-radius: 16px; padding: 16px; margin-bottom: 12px; box-shadow: var(--shadow); }
+  .card h2 { font-size: 15px; margin: 0 0 12px; color: var(--sub); font-weight: 600; }
+
+  /* サマリー */
+  .summary .label { font-size: 14px; color: var(--sub); }
+  .summary .big { font-size: 40px; font-weight: 700; letter-spacing: -.5px; margin: 2px 0 12px; font-variant-numeric: tabular-nums; }
+  .summary.is-over .big { color: var(--danger); }
+  .bar { height: 12px; background: var(--line); border-radius: 99px; overflow: hidden; margin-bottom: 12px; }
+  .bar > div { height: 100%; background: var(--accent); border-radius: 99px; transition: width .4s; }
+  .bar.warn > div { background: var(--warn); }
+  .bar.over > div { background: var(--danger); }
+  .row { display: flex; justify-content: space-between; padding: 4px 0; font-variant-numeric: tabular-nums; }
+  .row span:first-child { color: var(--sub); }
+  .over-box { margin-top: 10px; background: var(--danger-soft); color: var(--danger); border-radius: 12px; padding: 10px 12px; font-size: 14px; }
+  .over-box strong { font-size: 18px; }
+
+  /* 内訳 */
+  .break { margin-bottom: 10px; }
+  .break:last-child { margin-bottom: 0; }
+  .break .row { padding: 0 0 4px; font-size: 14px; }
+  .mini-bar { height: 6px; background: var(--line); border-radius: 99px; overflow: hidden; }
+  .mini-bar > div { height: 100%; background: var(--accent); opacity: .7; }
+  .empty { color: var(--sub); font-size: 14px; text-align: center; padding: 8px 0; }
+
+  /* 一覧 */
+  .list-head { display: flex; justify-content: space-between; align-items: baseline; margin: 20px 4px 8px; }
+  .list-head h2 { font-size: 16px; margin: 0; }
+  .list-head span { color: var(--sub); font-size: 13px; }
+  .item { display: flex; gap: 12px; align-items: center; background: var(--card); border-radius: 14px; padding: 12px 14px; margin-bottom: 8px; box-shadow: var(--shadow); width: 100%; border: none; text-align: left; color: var(--text); }
+  .item .date { font-size: 12px; color: var(--sub); width: 40px; flex-shrink: 0; text-align: center; line-height: 1.3; }
+  .item .date b { display: block; font-size: 17px; color: var(--text); }
+  .item .mid { flex: 1; min-width: 0; }
+  .item .store { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .item .meta { font-size: 12px; color: var(--sub); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chip { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 6px; background: var(--accent-soft); color: var(--accent); margin-right: 4px; }
+  .item .amt { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .item .amt.minus { color: var(--accent); }
+
+  /* ボタン類 */
+  .btn { display: block; width: 100%; border: none; border-radius: 12px; padding: 14px; font-weight: 700; background: var(--accent); color: #fff; }
+  .btn.sub { background: var(--line); color: var(--text); }
+  .btn.danger { background: var(--danger-soft); color: var(--danger); }
+  .btn:disabled { opacity: .5; }
+  .btns { display: flex; gap: 8px; margin-top: 16px; }
+  .btns .btn { flex: 1; }
+  .fab { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(20px + env(safe-area-inset-bottom)); border: none; border-radius: 99px; padding: 16px 28px; background: var(--accent); color: #fff; font-weight: 700; font-size: 16px; box-shadow: 0 6px 20px rgba(47,125,107,.35); }
+
+  /* 入力 */
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 13px; color: var(--sub); margin-bottom: 4px; }
+  .field input, .field select, .field textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); border-radius: 10px; padding: 12px; }
+  .field textarea { min-height: 70px; resize: vertical; }
+  .field-row { display: flex; gap: 8px; }
+  .field-row .field { flex: 1; min-width: 0; }
+  .pass-input { width: 100%; border: 1px solid var(--line); background: var(--card); border-radius: 12px; padding: 14px; text-align: center; margin-bottom: 12px; }
+  .err { color: var(--danger); font-size: 14px; min-height: 20px; margin-top: 8px; }
+
+  .upload { display: flex; gap: 8px; margin-bottom: 12px; }
+  .upload label { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 14px 8px; border: 2px dashed var(--line); border-radius: 12px; color: var(--accent); font-weight: 700; font-size: 14px; }
+  .upload label span { font-size: 26px; }
+  .upload input { display: none; }
+  .preview { width: 100%; max-height: 260px; object-fit: contain; border-radius: 12px; background: var(--bg); margin-bottom: 8px; }
+  .ai-status { font-size: 14px; padding: 10px 12px; border-radius: 10px; margin-bottom: 12px; background: var(--accent-soft); color: var(--accent); }
+  .ai-status.error { background: var(--danger-soft); color: var(--danger); }
+
+  /* 下から出るシート */
+  .sheet { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 20; display: flex; align-items: flex-end; justify-content: center; }
+  .sheet-body { background: var(--card); width: 100%; max-width: 560px; max-height: 92vh; overflow-y: auto; border-radius: 20px 20px 0 0; padding: 20px 16px calc(24px + env(safe-area-inset-bottom)); }
+  .sheet-body h3 { margin: 0 0 16px; font-size: 18px; }
+  .detail-amt { font-size: 32px; font-weight: 700; margin: 4px 0 12px; font-variant-numeric: tabular-nums; }
+  .detail-items { white-space: pre-wrap; font-size: 14px; background: var(--bg); border-radius: 10px; padding: 10px 12px; margin: 8px 0; }
+  .detail-img { width: 100%; border-radius: 12px; margin-top: 8px; }
+  .help { font-size: 13px; color: var(--sub); line-height: 1.7; background: var(--bg); border-radius: 10px; padding: 10px 12px; margin-top: 16px; }
+
+  /* 読み込み中・トースト */
+  .loading { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.25); }
+  .loading div { background: var(--card); padding: 16px 22px; border-radius: 14px; font-weight: 600; }
+  .toast { position: fixed; left: 50%; top: calc(16px + env(safe-area-inset-top)); transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 10px 18px; border-radius: 99px; font-size: 14px; z-index: 60; }
+</style>
+</head>
+<body>
+
+<!-- ログイン画面 -->
+<div id="login">
+  <div class="login-box">
+    <div class="logo">📦</div>
+    <h1>引っ越し費用ノート</h1>
+    <p>合言葉を入れてね</p>
+    <input id="passInput" class="pass-input" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="合言葉（ひらがなOK）">
+    <button id="loginBtn" class="btn">はじめる</button>
+    <div id="loginErr" class="err"></div>
+  </div>
+</div>
+
+<!-- メイン画面 -->
+<div id="app" hidden>
+  <div class="wrap">
+    <header>
+      <h1>引っ越し費用ノート<span id="roleBadge" class="badge"></span></h1>
+      <button id="settingsBtn" class="icon-btn" aria-label="設定">⚙️</button>
+    </header>
+
+    <section id="summary" class="card summary">
+      <div id="remainLabel" class="label">残り</div>
+      <div id="remain" class="big">¥0</div>
+      <div id="bar" class="bar"><div id="barFill" style="width:0"></div></div>
+      <div class="row"><span>預かり金</span><span id="budget"></span></div>
+      <div class="row"><span>使った合計</span><span id="spent"></span></div>
+      <div id="overBox" class="over-box" hidden>預かり金を超えて、こっちが <strong id="over"></strong> 持ち出し中</div>
+    </section>
+
+    <section class="card">
+      <h2>カテゴリ別</h2>
+      <div id="cats"></div>
+    </section>
+
+    <section class="card">
+      <h2>支払った人別</h2>
+      <div id="payers"></div>
+    </section>
+
+    <div class="list-head"><h2>記録</h2><span id="count"></span></div>
+    <div id="list"></div>
+  </div>
+  <button id="fab" class="fab">＋ 明細を追加</button>
+</div>
+
+<!-- 追加・編集シート -->
+<div id="editSheet" class="sheet" hidden>
+  <div class="sheet-body">
+    <h3 id="editTitle">明細を追加</h3>
+    <div class="upload">
+      <label>
+        <span>📷</span>写真を撮る
+        <input id="cameraInput" type="file" accept="image/*" capture="environment">
+      </label>
+      <label>
+        <span>🖼️</span>スクショを選ぶ
+        <input id="fileInput" type="file" accept="image/*">
+      </label>
+    </div>
+    <img id="preview" class="preview" hidden alt="明細の画像">
+    <div id="aiStatus" class="ai-status" hidden></div>
+
+    <form id="form" autocomplete="off">
+      <div class="field-row">
+        <div class="field"><label>日付</label><input type="date" name="date" required></div>
+        <div class="field"><label>金額（円）</label><input name="amount" inputmode="numeric" placeholder="12800" required></div>
+      </div>
+      <div class="field"><label>お店・業者</label><input name="store" placeholder="ニトリ、〇〇工務店 など"></div>
+      <div class="field-row">
+        <div class="field"><label>カテゴリ</label>
+          <select name="category">
+            <option>家具</option><option>家電</option><option>生活用品</option>
+            <option>工事・リフォーム</option><option>引っ越し作業</option><option>その他</option>
+          </select>
+        </div>
+        <div class="field"><label>支払った人</label>
+          <select name="payer"><option>夫</option><option>妻</option><option>その他</option></select>
+        </div>
+      </div>
+      <div class="field"><label>買ったもの</label><textarea name="items" placeholder="カーテン ¥5,990&#10;ラグ ¥23,890"></textarea></div>
+      <div class="field"><label>メモ</label><textarea name="memo" placeholder="返品予定、ポイント使った など"></textarea></div>
+      <div class="btns">
+        <button type="button" id="editCancel" class="btn sub">やめる</button>
+        <button type="submit" id="saveBtn" class="btn">保存</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 詳細シート -->
+<div id="detailSheet" class="sheet" hidden>
+  <div class="sheet-body">
+    <div id="detailMeta" style="color:var(--sub);font-size:14px"></div>
+    <h3 id="detailStore" style="margin:4px 0 0"></h3>
+    <div id="detailAmt" class="detail-amt"></div>
+    <div id="detailItems" class="detail-items" hidden></div>
+    <div id="detailMemo" class="detail-items" hidden></div>
+    <div id="detailImgBox"></div>
+    <div id="detailBtns" class="btns">
+      <button id="delBtn" class="btn danger">削除</button>
+      <button id="editBtn" class="btn">編集</button>
+    </div>
+    <div class="btns"><button id="detailClose" class="btn sub">閉じる</button></div>
+  </div>
+</div>
+
+<!-- 設定シート -->
+<div id="settingsSheet" class="sheet" hidden>
+  <div class="sheet-body">
+    <h3>設定</h3>
+    <div id="budgetField" class="field">
+      <label>預かり金（円）</label>
+      <input id="budgetInput" inputmode="numeric">
+    </div>
+    <button id="budgetSave" class="btn">預かり金を保存</button>
+    <div class="help">
+      <b>ホーム画面に追加すると、アプリみたいに使えるよ</b><br>
+      iPhone：Safariの下の「共有」ボタン →「ホーム画面に追加」<br>
+      Android：Chromeの右上「︙」→「ホーム画面に追加」
+    </div>
+    <div class="btns">
+      <button id="logoutBtn" class="btn sub">ログアウト</button>
+      <button id="settingsClose" class="btn sub">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<div id="loading" class="loading" hidden><div id="loadingText">読み込み中…</div></div>
+<div id="toast" class="toast" hidden></div>
+
+<script>
+// ---------------- サーバーとのやりとり ----------------
+// Apps Script の「ウェブアプリのURL」（.../exec で終わるもの）
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbxIgJXTpYwM-56etLmHTbiht2JDX6tkJl3sg3kt2zj5BWsEqmPFpl6LlBjLUR5hFqid/exec';
+
+async function api(fn, ...args) {
+  if (!GAS_URL) return mockApi(fn, ...args);
+  let res;
+  try {
+    // text/plain で送る（Googleとの間で余計な確認通信が起きないように）
+    res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ fn, args }) });
+  } catch (e) {
+    throw new Error('通信できなかったよ。電波を確認してね');
+  }
+  let j;
+  try { j = await res.json(); } catch (e) { throw new Error('サーバーの返事が読めなかったよ（' + res.status + '）'); }
+  if (!j.ok) throw new Error(j.error);
+  return j.data;
+}
+
+// ホーム画面に追加したときにアプリとして動かすための仕掛け
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+
+// パソコンで画面だけ確かめるための仮のサーバー（本番では使われない）
+function mockApi(fn, pass, arg) {
+  const KEY = 'mock-hikkoshi';
+  window.__mock = window.__mock || {};
+  const load = () => JSON.parse(lsGet(KEY) || window.__mock[KEY] || '{"budget":420000,"records":[]}');
+  const save = d => { window.__mock[KEY] = JSON.stringify(d); lsSet(KEY, window.__mock[KEY]); };
+  const localStorage = { getItem: k => lsGet(k) || window.__mock[k], setItem: (k, v) => { window.__mock[k] = v; lsSet(k, v); } };
+  const role = pass === '1111' ? 'edit' : pass === '0000' ? 'view' : null;
+  return new Promise((resolve, reject) => setTimeout(() => {
+    if (!role) return reject(new Error('合言葉がちがいます'));
+    const d = load();
+    const data = () => ({ role, budget: d.budget, records: d.records });
+    const needEdit = () => { if (role !== 'edit') throw new Error('見るだけモードでは変更できません'); };
+    try {
+      if (fn === 'login') return resolve({ role });
+      if (fn === 'getData') return resolve(data());
+      if (fn === 'setBudget') { needEdit(); d.budget = Number(arg); save(d); return resolve(data()); }
+      if (fn === 'saveRecord') {
+        needEdit();
+        const rec = Object.assign({}, arg);
+        if (rec.imageData) { rec.imageId = 'mock-' + Date.now(); localStorage.setItem(rec.imageId, rec.imageData); }
+        delete rec.imageData;
+        rec.amount = Number(rec.amount);
+        const i = d.records.findIndex(r => r.id === rec.id);
+        if (i >= 0) d.records[i] = Object.assign(d.records[i], rec);
+        else { rec.id = String(Date.now()); rec.createdAt = new Date().toISOString(); d.records.push(rec); }
+        save(d); return resolve(data());
+      }
+      if (fn === 'deleteRecord') { needEdit(); d.records = d.records.filter(r => r.id !== arg); save(d); return resolve(data()); }
+      if (fn === 'getImage') return resolve(localStorage.getItem(arg));
+      if (fn === 'analyzeImage') {
+        needEdit();
+        return setTimeout(() => resolve({
+          date: new Date().toISOString().slice(0, 10), store: 'ニトリ（お試し）', total: 29880,
+          items: [{ name: 'カーテン', price: 5990 }, { name: 'ラグ', price: 23890 }], category: '家具'
+        }), 1200);
+      }
+      reject(new Error('unknown: ' + fn));
+    } catch (e) { reject(e); }
+  }, 300));
+}
+
+// ---------------- 便利関数 ----------------
+const $ = id => document.getElementById(id);
+const yen = n => (n < 0 ? '−' : '') + '¥' + Math.abs(Math.round(n)).toLocaleString('ja-JP');
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const today = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
+const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+const lsDel = k => { try { localStorage.removeItem(k); } catch (e) {} };
+const parseAmount = s => { const t = String(s).replace(/[,，¥円\s]/g, '').replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0)).replace(/^[−ー－]/, '-'); return t === '' ? NaN : Number(t); };
+
+function showLoading(text) { $('loadingText').textContent = text || '読み込み中…'; $('loading').hidden = false; }
+function hideLoading() { $('loading').hidden = true; }
+let toastTimer;
+function toast(msg) { $('toast').textContent = msg; $('toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').hidden = true, 2500); }
+function openSheet(id) { $(id).hidden = false; document.body.style.overflow = 'hidden'; }
+function closeSheet(id) { $(id).hidden = true; document.body.style.overflow = ''; }
+document.querySelectorAll('.sheet').forEach(s => s.addEventListener('click', e => { if (e.target === s) closeSheet(s.id); }));
+
+// ---------------- 状態 ----------------
+const state = { pass: '', role: '', budget: 0, records: [], editing: null, imageData: null, current: null };
+
+function applyData(d) { state.role = d.role; state.budget = d.budget; state.records = d.records || []; render(); }
+
+// ---------------- ログイン ----------------
+async function doLogin(pass) {
+  showLoading();
+  try {
+    const d = await api('getData', pass);
+    state.pass = pass; lsSet('hikkoshi-pass', pass);
+    applyData(d);
+    $('login').hidden = true; $('app').hidden = false;
+  } finally { hideLoading(); }
+}
+$('loginBtn').onclick = async () => {
+  const pass = $('passInput').value.trim();
+  if (!pass) return;
+  $('loginErr').textContent = '';
+  try { await doLogin(pass); } catch (e) { $('loginErr').textContent = e.message; }
+};
+// 日本語入力の「確定」のEnterではログインしない
+$('passInput').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing && e.keyCode !== 229) $('loginBtn').click(); });
+
+// ---------------- 表示 ----------------
+function render() {
+  const isEdit = state.role === 'edit';
+  $('roleBadge').textContent = isEdit ? '' : '見るだけ';
+  $('roleBadge').hidden = isEdit;
+  $('fab').hidden = !isEdit;
+
+  const spent = state.records.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+  const remain = state.budget - spent;
+  const over = remain < 0;
+  $('summary').classList.toggle('is-over', over);
+  $('remainLabel').textContent = over ? '持ち出し中' : '残り';
+  $('remain').textContent = over ? yen(remain) : yen(remain);
+  $('budget').textContent = yen(state.budget);
+  $('spent').textContent = yen(spent);
+  $('overBox').hidden = !over;
+  $('over').textContent = yen(-remain);
+  const pct = state.budget > 0 ? Math.min(100, spent / state.budget * 100) : (spent > 0 ? 100 : 0);
+  $('barFill').style.width = pct + '%';
+  $('bar').className = 'bar' + (over ? ' over' : pct >= 80 ? ' warn' : '');
+
+  renderBreakdown('cats', 'category');
+  renderBreakdown('payers', 'payer');
+  renderList();
+}
+
+function renderBreakdown(elId, key) {
+  const sums = {};
+  state.records.forEach(r => { const k = r[key] || '未設定'; sums[k] = (sums[k] || 0) + (Number(r.amount) || 0); });
+  const entries = Object.entries(sums).sort((a, b) => b[1] - a[1]);
+  if (!entries.length) { $(elId).innerHTML = '<div class="empty">まだ記録がないよ</div>'; return; }
+  const max = Math.max(...entries.map(e => e[1]), 1);
+  $(elId).innerHTML = entries.map(([k, v]) => `
+    <div class="break">
+      <div class="row"><span>${esc(k)}</span><span>${yen(v)}</span></div>
+      <div class="mini-bar"><div style="width:${Math.max(0, v / max * 100)}%"></div></div>
+    </div>`).join('');
+}
+
+function sortedRecords() {
+  return state.records.slice().sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.createdAt || '').localeCompare(a.createdAt || ''));
+}
+
+function renderList() {
+  const recs = sortedRecords();
+  $('count').textContent = recs.length ? recs.length + '件' : '';
+  if (!recs.length) {
+    $('list').innerHTML = `<div class="card empty">${state.role === 'edit' ? '下の「＋ 明細を追加」から記録してね' : 'まだ記録がないよ'}</div>`;
+    return;
+  }
+  $('list').innerHTML = recs.map(r => {
+    const [y, m, d] = (r.date || '').split('-');
+    const first = (r.items || '').split('\n')[0];
+    return `<button class="item" data-id="${esc(r.id)}">
+      <div class="date">${m ? Number(m) + '月' : ''}<b>${d ? Number(d) : '—'}</b></div>
+      <div class="mid">
+        <div class="store">${esc(r.store || '（お店未入力）')}</div>
+        <div class="meta"><span class="chip">${esc(r.category || 'その他')}</span>${r.imageId ? '📎 ' : ''}${esc(first)}</div>
+      </div>
+      <div class="amt ${r.amount < 0 ? 'minus' : ''}">${yen(r.amount)}</div>
+    </button>`;
+  }).join('');
+  $('list').querySelectorAll('.item').forEach(b => b.onclick = () => openDetail(b.dataset.id));
+}
+
+// ---------------- 詳細 ----------------
+async function openDetail(id) {
+  const r = state.records.find(x => x.id === id);
+  if (!r) return;
+  state.current = r;
+  $('detailMeta').textContent = `${r.date || '日付なし'} ・ ${r.category || 'その他'} ・ ${r.payer || ''}が支払い`;
+  $('detailStore').textContent = r.store || '（お店未入力）';
+  $('detailAmt').textContent = yen(r.amount);
+  $('detailItems').hidden = !r.items; $('detailItems').textContent = r.items || '';
+  $('detailMemo').hidden = !r.memo; $('detailMemo').textContent = r.memo ? '📝 ' + r.memo : '';
+  $('detailBtns').hidden = state.role !== 'edit';
+  $('detailImgBox').innerHTML = r.imageId ? '<div class="empty">画像を読み込み中…</div>' : '';
+  openSheet('detailSheet');
+  if (r.imageId) {
+    try {
+      const src = await api('getImage', state.pass, r.imageId);
+      if (state.current === r && src) $('detailImgBox').innerHTML = `<img class="detail-img" src="${src}" alt="明細の画像">`;
+    } catch (e) { $('detailImgBox').innerHTML = '<div class="empty">画像を読み込めなかったよ</div>'; }
+  }
+}
+$('detailClose').onclick = () => closeSheet('detailSheet');
+$('editBtn').onclick = () => { closeSheet('detailSheet'); openEdit(state.current); };
+$('delBtn').onclick = async () => {
+  const r = state.current;
+  if (!r || !confirm(`「${r.store || 'この記録'} ${yen(r.amount)}」を削除する？`)) return;
+  showLoading('削除中…');
+  try { applyData(await api('deleteRecord', state.pass, r.id)); closeSheet('detailSheet'); toast('削除したよ'); }
+  catch (e) { alert(e.message); }
+  finally { hideLoading(); }
+};
+
+// ---------------- 追加・編集 ----------------
+function openEdit(rec) {
+  state.editing = rec || null;
+  state.imageData = null;
+  const f = $('form');
+  f.reset();
+  $('editTitle').textContent = rec ? '記録を編集' : '明細を追加';
+  f.date.value = rec ? rec.date : today();
+  f.amount.value = rec ? rec.amount : '';
+  f.store.value = rec ? rec.store : '';
+  f.category.value = rec ? (rec.category || 'その他') : '家具';
+  f.payer.value = rec ? (rec.payer || '夫') : (lsGet('hikkoshi-payer') || '夫');
+  f.items.value = rec ? rec.items : '';
+  f.memo.value = rec ? rec.memo : '';
+  $('preview').hidden = true; $('preview').removeAttribute('src');
+  $('aiStatus').hidden = true;
+  openSheet('editSheet');
+}
+$('fab').onclick = () => openEdit(null);
+$('editCancel').onclick = () => closeSheet('editSheet');
+
+// 画像を小さくする（通信と保存を軽くするため）
+function resizeImage(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const s = Math.min(1, 1400 / img.width, 4200 / img.height);
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+      ctx.drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL('image/jpeg', 0.85));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('画像を開けなかったよ')); };
+    img.src = url;
+  });
+}
+
+function setAiStatus(msg, isError) {
+  $('aiStatus').hidden = !msg;
+  $('aiStatus').textContent = msg || '';
+  $('aiStatus').classList.toggle('error', !!isError);
+}
+
+async function onPickImage(e) {
+  const file = e.target.files && e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  try {
+    state.imageData = await resizeImage(file);
+  } catch (err) { setAiStatus(err.message, true); return; }
+  $('preview').src = state.imageData; $('preview').hidden = false;
+  setAiStatus('🤖 AIが読み取り中…（10秒くらい）');
+  $('saveBtn').disabled = true;
+  try {
+    const r = await api('analyzeImage', state.pass, state.imageData);
+    const f = $('form');
+    if (r.date) f.date.value = r.date;
+    if (r.total != null && r.total !== '') f.amount.value = r.total;
+    if (r.store) f.store.value = r.store;
+    if (r.category) f.category.value = r.category;
+    if (Array.isArray(r.items) && r.items.length) {
+      f.items.value = r.items.map(i => i.name + (i.price != null && i.price !== '' ? ' ' + yen(i.price) : '')).join('\n');
+    }
+    setAiStatus('✅ 読み取ったよ。金額と日付が合ってるか確認して保存してね');
+  } catch (err) {
+    setAiStatus('読み取れなかったよ。手で入力してね（' + err.message + '）', true);
+  } finally { $('saveBtn').disabled = false; }
+}
+$('cameraInput').onchange = onPickImage;
+$('fileInput').onchange = onPickImage;
+
+$('form').onsubmit = async e => {
+  e.preventDefault();
+  const f = e.target;
+  const amount = parseAmount(f.amount.value);
+  if (!isFinite(amount)) { alert('金額を数字で入れてね'); return; }
+  const rec = {
+    id: state.editing ? state.editing.id : '',
+    date: f.date.value, amount, store: f.store.value.trim(),
+    category: f.category.value, payer: f.payer.value,
+    items: f.items.value.trim(), memo: f.memo.value.trim(),
+    imageData: state.imageData || '',
+  };
+  lsSet('hikkoshi-payer', rec.payer);
+  showLoading('保存中…');
+  try { applyData(await api('saveRecord', state.pass, rec)); closeSheet('editSheet'); toast('保存したよ'); }
+  catch (err) { alert('保存できなかったよ：' + err.message); }
+  finally { hideLoading(); }
+};
+
+// ---------------- 設定 ----------------
+$('settingsBtn').onclick = () => {
+  $('budgetInput').value = state.budget;
+  const isEdit = state.role === 'edit';
+  $('budgetInput').disabled = !isEdit;
+  $('budgetSave').hidden = !isEdit;
+  openSheet('settingsSheet');
+};
+$('budgetSave').onclick = async () => {
+  const n = parseAmount($('budgetInput').value);
+  if (!isFinite(n) || n < 0) { alert('金額を数字で入れてね'); return; }
+  showLoading('保存中…');
+  try { applyData(await api('setBudget', state.pass, n)); closeSheet('settingsSheet'); toast('預かり金を更新したよ'); }
+  catch (e) { alert(e.message); }
+  finally { hideLoading(); }
+};
+$('settingsClose').onclick = () => closeSheet('settingsSheet');
+$('logoutBtn').onclick = () => {
+  lsDel('hikkoshi-pass'); state.pass = '';
+  closeSheet('settingsSheet');
+  $('app').hidden = true; $('login').hidden = false; $('passInput').value = '';
+};
+
+// ---------------- 起動 ----------------
+(async () => {
+  const saved = lsGet('hikkoshi-pass');
+  if (saved) {
+    try { await doLogin(saved); return; } catch (e) { lsDel('hikkoshi-pass'); }
+  }
+  $('login').hidden = false;
+})();
+</script>
+</body>
+</html>
